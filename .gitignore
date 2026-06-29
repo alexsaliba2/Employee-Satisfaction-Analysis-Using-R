@@ -7,7 +7,7 @@
 
 # Compiled output
 *.pdf
-*.html
+# *.html  # Commented out to allow HTML for GitHub Pages
 *.docx
 
 # OS specific
