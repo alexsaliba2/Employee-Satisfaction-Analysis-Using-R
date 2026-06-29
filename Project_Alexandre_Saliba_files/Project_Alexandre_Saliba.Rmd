@@ -1,0 +1,401 @@
+---
+title: "Project: Employee Survey Analysis"
+author: "Alexandre Saliba"
+date: "2025-04-22"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This dataset examines employee satisfaction and workplace dynamics across 3,025 responses from a fictional company. It includes information on demographics, job role, work-life balance, and more. The goal is to identify factors that influence employee job satisfaction using statistical techniques such as Chi-square tests, ANOVA, and regression analysis.
+
+---
+
+# Dataset 
+
+The ***employee_survey*** dataset uses a synthetically made survey that a fictional company recorded the responses of their employees in regards to job satisfaction and overall happiness. Available here on kaggle: 
+
+https://www.kaggle.com/datasets/lainguyn123/employee-survey/data
+
+The dataset contains a total of 3,025 records.   
+---
+## R-packages Used
+
+- **readxl**: Used to read and load Excel files — [https://readxl.tidyverse.org/](https://readxl.tidyverse.org/)
+- **dplyr**: For data manipulation — [https://dplyr.tidyverse.org/](https://dplyr.tidyverse.org/)
+- **ggplot2**: For creating visualizations — [https://ggplot2.tidyverse.org/](https://ggplot2.tidyverse.org/)
+- **corrplot**: For correlation matrix plots — [https://cran.r-project.org/package=corrplot](https://cran.r-project.org/package=corrplot)
+- **knitr**: For rendering formatted tables in RMarkdown — [https://yihui.org/knitr/](https://yihui.org/knitr/)
+
+```{r packages, message=FALSE, warning=FALSE}
+library(readxl) # Load library for reading Excel files
+library(dplyr)  # Data manipulation
+library(ggplot2) # Plotting
+library(corrplot) # Correlation matrix visual
+library(knitr) #Table rendering
+library(gridExtra) 
+```
+
+---
+
+# Data Exploration
+
+The employee_survey contains 23 answer columns and a total of 3,025 recorded responses. For this project I'll be using just 8 answer columns as my variables 
+
+1. Gender (`Gender`) — Categorical variable representing the gender the employee identifies as.
+
+2. Age (`Age`) — Continuous variable measuring the age of the employee.
+
+3. Job Level (`JbL`) — Categorical variable indicating the employee's job level (e.g., Intern/Fresher, Junior, Mid, Senior, Lead).
+
+4. Experience (`Exp`) — Continuous variable measuring the number of years of work experience the employee has.
+
+5. Department (`Dept`) — Categorical variable indicating the department where the employee works.
+
+6. Work-Life Balance (`WLB`) — Ordinal variable (1–5) indicating the employee's perception of work-life balance, with 1 being poor and 5 being excellent.
+
+7. Work Environment (`WkEnv`) — Ordinal variable (1–5) representing the perceived quality of the employee's work environment, from 1 (Very Poor) to 5 (Excellent).
+
+8. Work Load (`WkLd`) — Ordinal variable (1–5) indicating the employee’s perception of their workload:
+   - 1 = Very Light
+   - 2 = Light
+   - 3 = Moderate
+   - 4 = Heavy
+   - 5 = Overwhelming
+
+9. Stress (`Stress`) — Ordinal variable (1–5) representing the employee's reported level of stress.
+
+10. Sleep Hours (`SleepH`) — Continuous variable representing the average number of hours of sleep the employee reports.
+
+11. Training Hours Per Year (`THPY`) — Continuous variable measuring the number of training hours the employee receives annually.
+
+12. Job Satisfaction (`JobSat`) — Ordinal variable (1–5) representing how satisfied an employee feels with their job.
+
+
+## Reading the Data 
+```{r, include=TRUE}
+#Loading the data set
+emp_data <- read_excel("employee_survey.xlsx", sheet = "employee_survey (2)")
+```
+## Data cleaning
+```{r, echo=TRUE}
+#Converting categorical variables to factors
+emp_data$Gender <- as.factor(emp_data$Gender) # Unordered factor
+emp_data$JbL <- factor(emp_data$JbL, ordered = TRUE, levels = c("Intern/Fresher", "Junior", "Mid", "Senior", "Lead"))
+emp_data$Dept <- as.factor(emp_data$Dept) # Unordered factor (categorical department names)
+emp_data$WLB  <- factor(emp_data$WLB, levels = 1:5, ordered = TRUE)  # 1 = Worst, 5 = Best
+emp_data$WkEnv <- factor(emp_data$WkEnv, levels = 1:5, ordered = TRUE) # Work Environment Rating
+emp_data$WkLd <- factor(emp_data$WkLd, levels = 1:5, ordered = TRUE) # Work Load
+emp_data$Stress <- factor(emp_data$Stress, levels = 1:5, ordered = TRUE) # Stress Level
+emp_data$JobSat <- factor(emp_data$JobSat, levels = 1:5, ordered = TRUE) # Job Satisfaction
+
+#Creating a vector of all the columns I'm using
+selected_cols <- emp_data %>%
+  select(EmpID, Gender, Age, JbL, Exp, Dept, WLB, WkEnv, WkLd, Stress, SleepH, THPY, JobSat)
+
+#Creating vector of numeric columns
+numeric_cols <- selected_cols %>%
+  select(Age, Exp, SleepH, THPY)
+```
+
+## Columns
+```{r}
+#selected_cols <- emp_data %>%
+  #select(Gender, Age, JbL, Exp, Dept, WLB, WkEnv, WkLd, Stress, SleepH, THPY, JobSat)
+summary(selected_cols)
+```
+# Correlation Matrix for continous variables
+```{r}
+# Round and print as table
+cor_matrix <- cor(numeric_cols, use = "complete.obs")
+
+# Plot the correlation matrix
+corrplot(cor_matrix, method = "circle", type = "lower",
+         tl.col = "black", tl.srt = 45, addCoef.col = "black", number.cex = 0.7)
+```
+
+#### Observations
+
+The correlation matrix reveals several positive relationships between **Age**, **Experience**, and **TrainingHoursPerYear**, indicating that older or more experienced employees tend to receive more training. However, **SleepHours** shows no significant linear relationship with any of the variables analyzed.
+```{r}
+library(knitr)
+
+# Creating a data frame with interpretation
+cor_summary <- data.frame(
+  `Variable Pair` = c(
+    "Age vs Exp",
+    "Age vs THPY",
+    "Exp vs THPY",
+    "SleepH with others"
+  ),
+  Correlation = c(0.69, 0.81, 0.74, "~0"),
+  Interpretation = c(
+    "Positive — older employees tend to have more experience",
+    "Very strong postive — older employees likely recive more training hours per year",
+    "Postive — more experienced staff likely receive more training",
+    "No linear relationship — sleep hours are independent of age, experience, and THPY."
+  )
+)
+
+# Display using kable
+kable(cor_summary, caption = "Summary of Key Correlation Findings")
+
+```
+# Test 1: Is there any association between job level (JbL) and stress? 
+
+To determine if there is an association between these two categorical variables, a Chi-squared test will be used. The Null Hypothesis usually states there is no association between stress level and employee type. 
+
+```{r}
+#Summary of Job Level 
+summary(selected_cols$JbL)
+
+#summary of Stress Level
+summary(selected_cols$Stress)
+```
+### Visualizing the Data
+```{r}
+ggplot(emp_data, aes(x = Stress, fill = JbL)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Distribution of Job Levels Across Stress Ratings",
+    x = "Stress Level (1 = Low, 5 = High)",
+    y = "Number of Employees",
+    fill = "Job Level"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+```
+
+The bar plot suggests a potential association between Job Level and reported Stress levels. Most Senior and Mid-level employees report low stress, while Interns and Junior employees appear more evenly spread across the stress spectrum. A Chi-square test can confirm whether this observed pattern is statistically significant.
+
+## Chi-Squared Test for association between Stress and JbL
+```{r}
+#Performing Chi-Square Test
+chi_sq_test <- chisq.test(table(emp_data$Stress, emp_data$JbL), simulate.p.value = TRUE)
+
+#Results
+chi_sq_test
+```
+
+### Observation
+
+With a p-value ≥ 0.05, we fail to reject the null hypothesis, suggesting that there is not a statistically significat association between Job Level and Stress Level. 
+
+## Test 1.2 Is there any association between Stress and Job Satisfaction?
+```{r}
+ggplot(emp_data, aes(x = Stress, fill = JobSat)) +
+  geom_bar(position = "dodge") +
+  labs(
+    title = "Distribution of Job Satisfaction Across Stress Levels",
+    x = "Stress Level (1 = Low, 5 = High)",
+    y = "Number of Employees",
+    fill = "Job Satisfaction"
+  ) +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Spectral")
+```
+
+The barplot suggests a potential association between an employee's percieved level of stress and job satisfaction. 
+
+### Chi-Square test for Stress and Job Satisfaction
+```{r}
+#Performing Chi-Square test
+chi_sq_jb <- chisq.test(table(emp_data$Stress, emp_data$JobSat), simulate.p.value = TRUE)
+
+#Results
+chi_sq_jb
+```
+### Observation
+
+With a p-value < 0.05, this Chi-Square test indicates that we can reject the null hypothesis. Which means there is strong evidence to suggest a relationship or association exists between Stress and Job Satisfaction.
+
+# Test 2: Is there a significant difference in Sleep Hours (`SleepH`) across different gender groups (`Gender`)?
+
+A **One-way ANOVA test** will be used to compare the means of **Sleep Hours** (`SleepH`) across different gender groups (`Gender`).
+
+A One-way ANOVA uses one **categorical** (nominal or ordinal) independent variable and one **continuous** (interval or ratio) dependent variable to determine if there is a statistically significant difference in the means of the dependent variable across the different levels of the independent variable.
+
+---
+
+**Independent Variable:**  
+- `Gender`  
+- Categorical: It categorizes subjects into **three groups** — _Male_, _Female_, and _Other_.  
+- Satisfies the requirement of having **at least two levels**.
+
+**Dependent Variable:**  
+- `SleepH` (Sleep Hours)  
+- Continuous: It represents the **average number of hours** an employee reports sleeping, ranging across a numerical scale.
+
+---
+
+This test will determine whether there is a statistically significant difference in average sleep duration across gender identities within the company.
+
+### Visualizing the Variables
+```{r}
+# Visualize Data
+ggplot(emp_data, aes(x = Gender, y = SleepH, fill = Gender)) +
+  geom_boxplot() +
+  labs(title = "Sleep Hours by Gender", x = "Gender", y = "Average Sleep Hours") +
+  theme_minimal()
+
+```
+
+Because the boxes do overlap much, the boxplot suggests there is no significant difference in SleepH between the groups. 
+
+## One-way ANOVA Test
+For a one-way ANOVA, the The **Null Hypothesis** states that the mean sleep hours for all gender groups are equal, while the **Alternative Hypothesis** states at least one group mean is different from the others.
+```{r}
+#Perform one-way ANOVA
+anova_gender_sleep <- aov(SleepH ~ Gender, data = emp_data)
+
+#Output the results
+summary(anova_gender_sleep)
+```
+### Observation
+
+Based on the ANOVA output, the test produced an F-statistic of **0.983** with a corresponding **p-value of 0.374**.
+
+Since the p-value is **greater than 0.05**, we **fail to reject the null hypothesis**. This suggests that there is **no statistically significant difference** in average Sleep Hours (`SleepH`) across the three gender groups (`Gender`).
+
+In other words, the data does not provide sufficient evidence to conclude that gender identity is associated with different sleep durations among employees in this dataset.
+
+# Test 3: Is there a significant difference in Stress levels based on Work Load and Work Environment?
+
+A **two-way ANOVA** will be used to analyze whether the average **Stress** (treated as numeric) differs based on levels of `WkEnv` and `WkLd`. Both `WkLd` and `WkEnv` are treated as categorical grouping variables with 5 levels (1–5).
+
+**Dependent Variable:**
+- `Stress` (treated as numeric for this test)
+
+**Independent Variables:**
+- `WkLd` (Work Load, ordinal)
+- `WkEnv` (Work Environment, ordinal)
+
+The two-way ANOVA tests:
+1. Whether `WkLd` affects Stress
+2. Whether `WkEnv` affects Stress
+3. Whether there’s an **interaction effect** between them
+### Visualization
+```{r}
+# Create the interaction plot (NOTE THAT STRESS IS BEING TREATED AS NUMERIC FOR THIS TEST)
+interaction.plot(
+  x.factor = emp_data$WkEnv,
+  trace.factor = emp_data$WkLd,
+  response = as.numeric(emp_data$Stress),
+  fun = mean,
+  type = "b",
+  legend = TRUE,
+  xlab = "Work Environment (1 = Poor, 5 = Excellent)",
+  ylab = "Mean Stress Level",
+  trace.label = "Work Load Level",
+  col = rainbow(5),
+  pch = 16,
+  main = "Interaction Plot: Work Environment x Work Load on Stress"
+)
+```
+
+The interaction plot suggests that stress levels are influenced by both WkLd and WkEnv, with strong evidence from crossing-lines suggesting a strong interaction event.   
+
+## Two-way ANOVA Test
+
+In a Two-Way ANOVA, we test several hypotheses to understand the effects of two factors and their interaction on a dependent variable. Here are the hypotheses involved:
+
+-Null Hypotheses (H₀):
+
+-There is no difference in mean stress levels across different levels of Work Load.
+
+-There is no difference in mean stress levels across different levels of Work Environment.
+
+-There is no interaction between Work Load and Work Environment on stress.
+
+Alternative Hypotheses (H₁):
+
+-At least one level of Work Load has a different mean stress level.
+
+-At least one level of Work Environment has a different mean stress level.
+
+-There is an interaction effect between Work Load and Work Environment on stress.
+```{r}
+# Perform two way ANOVA
+anova_stress <- aov(as.numeric(Stress) ~ WkLd * WkEnv, data = emp_data)
+
+# Output findings
+summary(anova_stress)
+
+```
+### Observation 
+
+Since all p-values are greater than 0.05, we fail to reject the null hypotheses. This suggests that:
+
+-There is no statistically significant difference in mean stress levels across levels of Work Load or Work Environment.
+
+-Additionally, there is no significant interaction effect, meaning the relationship between Work Load and Stress does not depend on Work Environment in a statistically meaningful way.
+
+# Test 4: How does stress, WLK, WkEnv, THPY, and Gender affect percived job satisfaction ratings?
+
+A Multiple Linear Regression test will be used to model the relationship between JobSat, as the dependent variable, and for the predictors:
+
+```{r, echo=FALSE}
+# Create the table data frame
+predictor_table <- data.frame(
+  Predictor = c("Stress", "WLB", "WkEnv", "THPY", "Gender"),
+  Type = c(
+    "Ordinal → Numeric",
+    "Ordinal → Numeric",
+    "Ordinal → Numeric",
+    "Continuous",
+    "Categorical (factor)"
+  ),
+  Rationale = c(
+    "Higher stress is likely to reduce job satisfaction.",
+    "Better work-life balance often leads to higher satisfaction.",
+    "Positive work environments are linked to satisfaction.",
+    "Training may boost morale and long-term job fulfillment.",
+    "Controls for potential gender-related differences."
+  )
+)
+
+# Display the table
+kable(predictor_table, caption = "Predictors for Multiple Linear Regression on Job Satisfaction")
+
+```
+
+## Multiple Linear Regression Test
+```{r multiple-regression, echo=TRUE}
+# Ensure JobSat is numeric for regression
+emp_data$JobSatNum <- as.numeric(as.character(emp_data$JobSat))
+emp_data$Stress <- as.numeric(as.character(emp_data$Stress))
+emp_data$WLB <- as.numeric(as.character(emp_data$WLB))
+emp_data$WkEnv <- as.numeric(as.character(emp_data$WkEnv))
+
+# Fit the multiple linear regression model
+mlr_model <- lm(JobSatNum ~ Stress + WLB + WkEnv + THPY + Gender, data = emp_data)
+
+# Output model summary
+summary(mlr_model)
+
+```
+### Observations
+The regression analysis reveals that Stress, Work-Life Balance, and Work Environment are strong, statistically significant predictors of job satisfaction. In contrast, Training Hours and Gender (both Male and Other) do not appear to significantly influence satisfaction ratings.
+
+# Final Conclusisons 
+
+This employee survey analysis explored how various workplace factors influence stress and job satisfaction. Multiple statistical tests—including ANOVAs and multiple linear regression—were performed to examine relationships among variables.
+
+Overall Insights: 
+
+- From Chi-Squared Tests there is significant association between stress and an employees perceived satisfaction with their job.
+
+- Results from Two-way ANOVA test suggests further study into other variables affecting employee work environment, as work load and work environment did not indicates a interaction, yet from our regression analysis Work Environment is shown as a significant predictor for satisfaction ratings. 
+
+- As one would expect, older employee's likely have more years of work experience
+
+
+
+
+
+
+
+
