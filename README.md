@@ -2,6 +2,10 @@
 
 This project analyzes employee satisfaction and workplace dynamics using statistical techniques in R. The analysis examines factors that influence employee job satisfaction across 3,025 survey responses from a fictional company.
 
+## 📊 View the Live Report
+
+The full analysis report is available on GitHub Pages: [View Employee Satisfaction Analysis Report](https://alexsaliba2.github.io/Employee-Satisfaction-Analysis-Using-R/Project_Alexandre_Saliba.html)
+
 ## Project Overview
 
 This analysis explores relationships between various workplace factors and employee satisfaction using:
@@ -65,6 +69,7 @@ install.packages(c("readxl", "dplyr", "ggplot2", "corrplot", "knitr", "gridExtra
 ```
 .
 ├── Project_Alexandre_Saliba.Rmd    # Main analysis file
+├── Project_Alexandre_Saliba.html  # Generated HTML report
 ├── employee_survey.xlsx            # Dataset
 ├── README.md                       # This file
 └── .gitignore                      # Git ignore file
